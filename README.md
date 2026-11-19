@@ -9,4 +9,4 @@
 
 ## 版权
 
-版权所有 © 2026 Ke Ma，保留所有权利。详见 [LICENSE](LICENSE)。
+版权所有 © 2026 马克（Ke Ma），保留所有权利。详见 [LICENSE](LICENSE)。
