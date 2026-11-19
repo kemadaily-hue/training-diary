@@ -77,3 +77,8 @@ window.claude={use:function(n){
   return Promise.resolve(null)}};
 if("serviceWorker" in navigator&&location.protocol==="https:")window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});
 })();
+/* 状态栏/导航栏颜色跟随当前皮肤的背景色,避免安装后出现蓝边 */
+(function(){function bg(){var els=[document.body,document.documentElement];for(var i=0;i<els.length;i++){if(!els[i])continue;var c=getComputedStyle(els[i]).backgroundColor;if(c&&c!=="transparent"&&!/rgba\(.*,\s*0\)$/.test(c))return c}return "#F1F3F5"}
+  function sync(){var m=document.querySelector('meta[name="theme-color"]');if(!m){m=document.createElement("meta");m.name="theme-color";document.head.appendChild(m)}var c=bg();if(m.content!==c)m.content=c}
+  function start(){sync();var mo=new MutationObserver(function(){clearTimeout(start.t);start.t=setTimeout(sync,50)});mo.observe(document.documentElement,{attributes:true,attributeFilter:["class","style","data-skin","data-theme"]});if(document.body)mo.observe(document.body,{attributes:true,attributeFilter:["class","style","data-skin","data-theme"]});setInterval(sync,3000)}
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start);else start()})();
