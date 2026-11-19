@@ -1424,11 +1424,11 @@ function renderTrain(){
     const tile=x=>{let ct,wn,warn=false;const pd=pl(x.g.k);
       if(x.kind==="todo"&&pd&&pd>S.date){const dd=toDate(pd),gp=gap(S.date,pd);ct='<span class="ctw">'+(gp===1?'明天':gp===2?'后天':WD[dd.getDay()])+'</span>';wn='📌 '+(dd.getMonth()+1)+'月'+dd.getDate()+'日'}
       else if(x.kind==="todo"){
-        if(x.today){ct=x.today+'/'+x.need;wn='目标 '+x.need+' 个';warn=true}
+        if(x.today){ct=x.today+'/'+x.n;wn=''}
         else if(x.rest==null){ct='–';wn='没练过'}
         else if(x.rest>=3){const ld=toDate(x.last);ct='<span class="ctw ctd">'+(ld.getMonth()+1)+'月'+ld.getDate()+'日</span>';wn=''} // 前天再往前:直接标上次练的日期
         else{ct='<span class="ctw">'+(x.rest===1?'昨天':'前天')+'</span>';wn='上次 '+x.cnt+' 个'}}
-      else if(x.kind==="done"){ct=x.today+'/'+x.need;wn='✓ 练完'}
+      else if(x.kind==="done"){ct=x.today+'/'+x.n;wn='✓ 今天练了'}
       else{ct=x.fpc+' 个';wn=(x.rg===1?'昨天练完 · ':x.rg===2?'前天练完 · ':'')+'再歇'+(x.N-x.rg)+'天'}
       if(x.kind==="todo"&&pd===S.date&&!x.today)wn='📌 今天计划';
       const isPl=x.kind==="todo"&&pd&&pd>S.date;
@@ -1453,7 +1453,7 @@ function renderTrain(){
     if(restL.length)h+=sect("rest","休息","还在恢复期",restL);
     $("exList").innerHTML=h;fitHome();return}
   {const g=HG.find(x=>x.k===S.part.g)||HG[0],p=S.part.p,list=cat.filter(e=>e.group===g.k&&e.part===p).map((e,i)=>[e,i]).sort((x,y)=>(isCompound(y[0])-isCompound(x[0]))||(x[1]-y[1])).map(x=>x[0]);
-    h+='<div class="part" style="margin-top:2px"><h2 class="ph"><span><i class="dot '+g.c+'"></i> '+esc(g.k===p?p:g.k+" · "+p)+'</span><span class="ph-n">今天 '+list.filter(e=>ents[e.id]).length+' 个 · 目标 '+partNeed(g.k,list,(list.length&&list.every(e=>e.kind==="cardio"||e.base==="拉伸"))?1:list.length)+'</span></h2><div class="list">';
+    h+='<div class="part" style="margin-top:2px"><h2 class="ph"><span><i class="dot '+g.c+'"></i> '+esc(g.k===p?p:g.k+" · "+p)+'</span><span class="ph-n">今天 '+list.filter(e=>ents[e.id]).length+' / 共 '+list.length+' 个</span></h2><div class="list">';
     if(!list.length)h+='<div class="empty">这个部位还没有动作。</div>';
     let togS=null;if(S.date===todayStr())try{const allM=[];convs().forEach(c=>thread(c).forEach(m=>allM.push(m)));allM.sort((a,b)=>a.t-b.t);togS=togetherSet(allM)}catch(_){}
     list.forEach(ex=>{const e=ents[ex.id];const src=e?{date:S.date,e}:lastBefore(ex.id,S.date);
@@ -2285,7 +2285,8 @@ function autoTarget(xs,n){const ids=xs.map(e=>e.id),cs=[],t=todayStr(),ds=allDat
   for(let i=ds.length-1;i>=0&&cs.length<8;i--){const d=ds[i];if(d>=t)continue;const en=(day(d)||{}).entries||{};const c=ids.filter(id=>en[id]).length;if(c>0)cs.push(c)}
   if(!cs.length)return Math.min(n,4);cs.sort((a,b)=>a-b);return Math.max(1,Math.min(n,cs[Math.floor(cs.length/2)]))}
 function tgtManual(gk){const d=S.tgtDraft;if(d&&gk in d)return d[gk];const m=(S.tgt||{})[gk];return Number.isInteger(m)?m:null}
-function partNeed(gk,xs,n){if(n<=1)return 1;const m=tgtManual(gk);return Number.isInteger(m)?Math.max(1,Math.min(n,m)):autoTarget(xs,n)}
+/* 做了这个部位任意 1 个动作,这天就算练过这个部位;做几个由用户自己把握 */
+function partNeed(gk,xs,n){return 1}
 function grpXs(gk){return catalog().filter(e=>!e.hidden&&groupOfBase(baseOf(e))===gk)}
 function grpN(xs){return (xs.length&&xs.every(e=>e.kind==="cardio"||baseOf(e)==="拉伸"))?1:xs.length}
 /* 导出:一个动作一行,每组一格(重量×次数) */
@@ -2383,16 +2384,14 @@ async function grpSave(){if(S.grpSaving)return;const a=assignFromGroups(groupsFr
     S.grpSaved=a;applyGroups(groupsFromAssign(a));S.grpBoxes=null;S.grpSel=null;const d=new Date();S.grpMsg={ok:true,t:"已保存并核对无误 · "+pad(d.getHours())+":"+pad(d.getMinutes())}}
   catch(e){S.grpMsg={ok:false,t:"保存没有成功,改动还在,请检查网络后再点一次。"}}
   S.grpSaving=false;render()}
-function rulesHtml(){let h='<details class="menu-item" id="dRule" data-fold="s_rule"'+(foldOpen("s_rule",false)?' open':'')+'><summary><span class="mi-t">每个部位练几个、歇几天</span><span class="mi-v"></span><span class="chev"></span></summary><div class="mi-body">'
+function rulesHtml(){let h='<details class="menu-item" id="dRule" data-fold="s_rule"'+(foldOpen("s_rule",false)?' open':'')+'><summary><span class="mi-t">每个部位歇几天</span><span class="mi-v"></span><span class="chev"></span></summary><div class="mi-body">'
   ;
   if(S.rulesMsg)h+='<div class="save-msg '+(S.rulesMsg.ok?'ok':'err')+'" role="status">'+(S.rulesMsg.ok?'✓ ':'')+esc(S.rulesMsg.t)+'</div>';
-  h+='<p class="mi-p">「每次 N 个」:一次练到这么多个动作就算这个部位练完了,不用把所有动作都做一遍。默认按你最近几次实际做的数量自动算。</p>';
+  h+='<p class="mi-p">这个部位哪天练过(做了任意一个动作),之后就休息这么多天再练。</p>';
   h+='<div class="rules">'+HG.map(g=>{const n=ruleCur(g.k),chg=n!==restDays(g.k);
     return '<div class="rule'+(chg?' chg':'')+'"><div class="rl"><b><i class="dot '+g.c+'"></i>'+esc(g.k)+'</b></div>'
       +'<div class="rs-step"><button data-act="ruleDec" data-p="'+esc(g.k)+'" aria-label="减少"'+(n<=RULE_MIN?' disabled':'')+'>−</button><span class="rv">休息 <b class="num">'+(n-1)+'</b> 天</span><button data-act="ruleInc" data-p="'+esc(g.k)+'" aria-label="增加"'+(n>=RULE_MAX?' disabled':'')+'>+</button></div>'
-      +(()=>{const xs=grpXs(g.k),N=grpN(xs);if(N<=1)return '';const m=tgtManual(g.k),v=partNeed(g.k,xs,N);
-        return '<div class="rs-step"><button data-act="tgtDec" data-p="'+esc(g.k)+'" aria-label="减少"'+(v<=1?' disabled':'')+'>−</button><span class="rv">每次 <b class="num">'+v+'</b> 个'+(Number.isInteger(m)?'':'<small class="auto">自动</small>')+'</span><button data-act="tgtInc" data-p="'+esc(g.k)+'" aria-label="增加"'+(v>=N?' disabled':'')+'>+</button></div>'
-          +(Number.isInteger(m)?'<button class="tgt-auto" data-act="tgtAuto" data-p="'+esc(g.k)+'">改回自动</button>':'')})()+'</div>'}).join("")+'</div>'
++'</div>'}).join("")+'</div>'
     ;
   if(rulesChanged()||S.rulesSaving)h+='<div class="rule-bar"><button class="ghost" data-act="ruleDiscard"'+(S.rulesSaving?' disabled':'')+'>放弃</button><button class="primary" data-act="ruleSave"'+(S.rulesSaving?' disabled':'')+'>'+(S.rulesSaving?'保存中…':'保存')+'</button></div>';
   return h+'</div></details>'}
