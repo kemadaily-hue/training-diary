@@ -30,6 +30,7 @@ function wCol(q){return{path:q.path,
   onSnapshot:function(cb,er){return q.onSnapshot(function(s){cb(wQS(s))},er||function(){})}}}
 var db=FBOK?{collection:function(p){return wCol(fs.collection(p))},doc:function(p){return wDoc(fs.doc(p))}}:null;
 
+try{var _inv=new URLSearchParams(location.search).get("i");if(_inv)sessionStorage.setItem("tl_inv",_inv)}catch(e){}
 /* ---------- 登录 ---------- */
 var resolveU,userP=new Promise(function(r){resolveU=r});
 var cur=null;

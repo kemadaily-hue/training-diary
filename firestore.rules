@@ -8,12 +8,12 @@ service cloud.firestore {
     }
     // 昵称和头像:登录用户都能看,只能改自己的
     match /profiles/{uid} {
-      allow read: if signed();
+      allow get: if signed();
       allow write: if signed() && request.auth.uid == uid;
     }
     // 聊天加密用的公钥
     match /keys/{uid} {
-      allow read: if signed();
+      allow get: if signed();
       allow write: if signed() && request.auth.uid == uid;
     }
     // 一起练消息(内容是加密的):发送者和收件人能读,只有发送者能写
@@ -25,6 +25,19 @@ service cloud.firestore {
     match /gm/{uid}/g/{gid} {
       allow read: if signed() && (request.auth.uid == uid || request.auth.uid in resource.data.members);
       allow write: if signed() && request.auth.uid == uid;
+    }
+    // 邀请码:知道码的人才能读到(不能列出所有码)
+    match /invites/{code} {
+      allow get: if signed();
+      allow create: if signed() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if signed() && resource.data.uid == request.auth.uid;
+    }
+    // 好友关系:只有自己能看自己的好友列表;对方凭你的邀请码可以把自己加进来
+    match /friends/{uid}/f/{fid} {
+      allow read, write: if signed() && request.auth.uid == uid;
+      allow create, update: if signed() && request.auth.uid == fid
+        && request.resource.data.code is string
+        && get(/databases/$(database)/documents/invites/$(request.resource.data.code)).data.uid == uid;
     }
     match /cheers/{id} { allow read: if signed(); }
   }
