@@ -1354,7 +1354,7 @@ async function boot(){ if(sbOn()){S.sandbox=true;S.skin="default";applySkin();S.
   db.collection(S.base+"/train/days").orderBy("date","desc").limit(1000).onSnapshot(snap=>{
     const m={};snap.docs.forEach(d=>{const v=d.data();if(v&&v.date)m[v.date]=v});S.days=m;S.dates=null;S.loaded=true;S.fromCache=false;maybeMigrate();saveCache();
     if(!Object.keys(S.inflight).some(k=>S.inflight[k]))setSync(pendCount()?"还有 "+pendCount()+" 天的记录待同步":"已同步");render()},
-    e=>{setSync("云端连接中断,请刷新页面",true)});
+    e=>{console.error("days listener",e);setSync("云端连接中断,请刷新页面"+(e&&e.code?"("+e.code+")":""),true)});
   db.doc(S.base+"/catalog").onSnapshot(s=>{if(S.catW>0)return; /* 本机正在保存动作列表时,不被旧数据盖回去 */const v=s.exists?s.data():null;S.catalog=v&&Array.isArray(v.list)?clone(v.list):null;S.catReady=true;maybeMigrate();saveCache();render()},()=>{S.catReady=true;render()});
 }
 
@@ -2327,7 +2327,7 @@ function importJson(){const m=$("bkMsg"),say=t=>{if(m)m.textContent=t};
     try{for(const k of BK_DOCS){if(v.docs&&v.docs[k])await S.db.doc(S.base+"/"+k).set(v.docs[k])}
       let i=0;for(const d of Object.keys(v.days)){await S.db.collection(S.base+"/train/days").doc(d).set(v.days[d]);i++;if(i%5===0)say("正在导入… "+i+" / "+n)}
       say("导入完成,共 "+n+" 天。");setTimeout(()=>location.reload(),900)}
-    catch(e){say("导入中断了,请再试一次(已导入的不会重复)。")}};
+    catch(e){console.error("import",e);say("导入中断了,请再试一次(已导入的不会重复)。"+(e&&(e.code||e.message)?" ["+(e.code||"")+" "+String(e.message||"").slice(0,160)+"]":""))}};
   inp.click()}
 async function exportCsv(){const m=$("expMsg"),say=t=>{if(m)m.textContent=t};const rows=exportRows();
   if(rows.length<2){say("还没有训练记录可以导出。");return}
