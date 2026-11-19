@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signed() { return request.auth != null; }
+    // 每个人的训练记录、动作、设置:只有本人能读写
+    match /data/users/{uid}/{rest=**} {
+      allow read, write: if signed() && request.auth.uid == uid;
+    }
+    // 昵称和头像:登录用户都能看,只能改自己的
+    match /profiles/{uid} {
+      allow read: if signed();
+      allow write: if signed() && request.auth.uid == uid;
+    }
+    // 聊天加密用的公钥
+    match /keys/{uid} {
+      allow read: if signed();
+      allow write: if signed() && request.auth.uid == uid;
+    }
+    // 一起练消息(内容是加密的):发送者和收件人能读,只有发送者能写
+    match /dm/{uid}/m/{mid} {
+      allow read: if signed() && (request.auth.uid == uid || resource.data.to == request.auth.uid || request.auth.uid in resource.data.gto);
+      allow write: if signed() && request.auth.uid == uid;
+    }
+    // 群聊信息:群成员能读,只有建群的人能写
+    match /gm/{uid}/g/{gid} {
+      allow read: if signed() && (request.auth.uid == uid || request.auth.uid in resource.data.members);
+      allow write: if signed() && request.auth.uid == uid;
+    }
+    match /cheers/{id} { allow read: if signed(); }
+  }
+}
