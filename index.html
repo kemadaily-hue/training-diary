@@ -4,7 +4,7 @@
 <style>#cheerQuick{display:none!important}</style><style>.inv{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--surface);text-align:left}.inv-t{font-weight:700;font-size:15px;color:var(--ink)}.inv-p{margin:6px 0 10px;font-size:13px;color:var(--muted);line-height:1.5}.inv-code{font-size:13px;color:var(--muted);margin-bottom:10px}.inv-code b{font:700 20px var(--num);letter-spacing:3px;color:var(--ink);margin-left:6px}.inv-btns{display:flex;gap:8px;flex-wrap:wrap}.inv-btns button{flex:1;min-width:120px}.inv-add{display:flex;gap:8px;margin-top:12px}.inv-add input{flex:1;min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:600 15px var(--body);text-transform:uppercase;letter-spacing:2px}.cl-inv{display:block;width:100%;margin:12px 0 4px;padding:12px;border:1px dashed var(--line);border-radius:14px;background:transparent;color:var(--accent);font-weight:700}.tl-toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:9000;max-width:86vw;padding:12px 16px;border-radius:14px;background:#14181D;color:#fff;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.25);transition:opacity .5s}.tl-toast.out{opacity:0}</style><style>.top-row{min-height:40px}
 #datePick{position:relative;cursor:pointer;background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23454D57' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M16 3v4M8 3v4M3 10h18'/%3E%3C/svg%3E") center/18px 18px no-repeat!important}
 #datePick::-webkit-calendar-picker-indicator{position:absolute!important;inset:0!important;width:auto!important;height:auto!important;margin:0!important;opacity:0!important;cursor:pointer}
-#datePick::-webkit-datetime-edit{opacity:0}</style><style>body.kb .tabs{display:none}body.kb .ch-compose{bottom:0;padding-bottom:8px}body.kb #v-cheer #cheerList{padding-bottom:84px}</style></head><body>
+#datePick::-webkit-datetime-edit{opacity:0}</style><style>body.kb .tabs{display:none}body.kb .ch-compose{bottom:0;padding-bottom:8px}body.kb #v-cheer #cheerList{padding-bottom:84px}</style><style>.mod.inj{background:rgba(255,255,255,.45);border-style:dashed;border-color:color-mix(in oklab,var(--bad) 45%,var(--line))}.mod.inj .pn,.mod.inj .ct{color:var(--muted)}.mod.inj .wn{color:var(--bad)}.st-inj h2{color:var(--bad)}.lp-inj{display:block;width:100%;margin-top:12px}</style></head><body>
 
 
 <title>🏋️训练日记</title>
@@ -1344,6 +1344,8 @@ async function boot(){ if(sbOn()){S.sandbox=true;S.skin="default";applySkin();S.
     else if(!(v&&v.skin)){ /* 云端没存过主题:同一账号沿用本机的;新账号一律用默认主题 */
       if(S.prevUid===uid&&S.skin&&S.skin!=="default")db.doc(S.base+"/ui").set({skin:S.skin}).catch(()=>{});
       else if(S.skin&&S.skin!=="default"){S.skin="default";applySkin();try{localStorage.setItem("tl_skin","default")}catch(e){}render()}}},()=>{});
+  S.inj=lsGet("tl_inj_"+uid)||{};
+  db.doc(S.base+"/injury").onSnapshot(d=>{if(S.injT&&Date.now()-S.injT<8000)return;S.inj=(d.exists&&(d.data()||{}).g)||{};lsSet("tl_inj_"+uid,S.inj);render()},()=>{});
   S.plan=lsGet("tl_plan_"+uid)||{};
   // 安排:每个部位一个文档(plan/g/<id>),互不覆盖;本机刚改过的以本机为准,直到云端对上
   db.collection(S.base+"/plan/g").limit(100).onSnapshot(sp=>{const m={};sp.docs.forEach(x=>{const v=x.data();if(v&&v.k&&v.d)m[v.k]=v.d});S.plan=m;
@@ -1412,15 +1414,15 @@ function renderTrain(){
         const need=partNeed(p,xs,n);
         let fullPrev=null,fpc=0;for(const dt of dates){if(dt>=S.date)continue;const c=cOn(dt);if(c>=need){fullPrev=dt;fpc=c;break}}
         const N=restDays(p),rg=fullPrev?gap(fullPrev,S.date):null;
-        const kind=today>=need?"done":(!today&&rg!=null&&rg<N)?"rest":"todo";
+        const kind=today>=need?"done":injGet(g.k)?"inj":(!today&&rg!=null&&rg<N)?"rest":"todo";
         tiles.push({g,p,n,need,last,cnt,today,yc,kind,rg,N,fpc,rest:last?gap(last,S.date):null})})});
     const todo=tiles.filter(x=>x.kind==="todo").sort((a,b)=>(b.today>0)-(a.today>0)||(b.rest==null?1e9:b.rest)-(a.rest==null?1e9:a.rest));
-    const done=tiles.filter(x=>x.kind==="done"),rest=tiles.filter(x=>x.kind==="rest");
+    const done=tiles.filter(x=>x.kind==="done"),rest=tiles.filter(x=>x.kind==="rest"),injL=tiles.filter(x=>x.kind==="inj");
     // 长按安排了以后哪天练:日子没到的放进「已安排」,当天的排在要练最前面
     const pl=k=>{const d=planGet(k);return d&&d>=S.date?d:null};
     const planned=todo.filter(x=>{const d=pl(x.g.k);return d&&d>S.date}).sort((a,b)=>pl(a.g.k)<pl(b.g.k)?-1:1);
     // 「今天」:手动安排到今天的部位 + 今天已经开练/练完的部位;其余没练的留在「要练」
-    const inToday=x=>x.kind==="done"||x.today>0||pl(x.g.k)===S.date;
+    const inToday=x=>x.kind==="done"||(x.kind!=="inj"&&(x.today>0||pl(x.g.k)===S.date));
     const todayL=tiles.filter(inToday).sort((a,b)=>(a.kind==="done")-(b.kind==="done"));
     const todoNow=todo.filter(x=>!planned.includes(x)&&!inToday(x));
     const restL=rest.filter(x=>!inToday(x));
@@ -1432,6 +1434,7 @@ function renderTrain(){
         else if(x.rest>=3){const ld=toDate(x.last);ct='<span class="ctw ctd">'+(ld.getMonth()+1)+'月'+ld.getDate()+'日</span>';wn=''} // 前天再往前:直接标上次练的日期
         else{ct='<span class="ctw">'+(x.rest===1?'昨天':'前天')+'</span>';wn='上次 '+x.cnt+' 个'}}
       else if(x.kind==="done"){ct=x.today+'/'+x.n;wn='✓ 今天练了'}
+      else if(x.kind==="inj"){const sd=injGet(x.g.k);ct='<span class="ctw">🩹</span>';wn=sd?'休息第 '+(gap(sd,S.date)+1)+' 天':'受伤休息'}
       else{ct=x.fpc+' 个';wn=(x.rg===1?'昨天练完 · ':x.rg===2?'前天练完 · ':'')+'再歇'+(x.N-x.rg)+'天'}
       if(x.kind==="todo"&&pd===S.date&&!x.today)wn='📌 今天计划';
       const isPl=x.kind==="todo"&&pd&&pd>S.date;
@@ -1454,6 +1457,7 @@ function renderTrain(){
     h+=todoNow.length?sect("todo","要练",S.date===todayStr()&&!S.lpTip?'长按可安排哪天练':'',todoNow):'<div class="sect st-todo"><h2>要练</h2><div class="empty">没有待练的部位,'+dn+'可以休息</div></div>';
     if(planned.length)h+=sect("plan","已安排","到那天会进入今天",planned);
     if(restL.length)h+=sect("rest","休息","还在恢复期",restL);
+    if(injL.length)h+=sect("inj","受伤休息","伤好了长按恢复",injL);
     $("exList").innerHTML=h;fitHome();return}
   {const g=HG.find(x=>x.k===S.part.g)||HG[0],p=S.part.p,list=cat.filter(e=>e.group===g.k&&e.part===p).map((e,i)=>[e,i]).sort((x,y)=>(isCompound(y[0])-isCompound(x[0]))||(x[1]-y[1])).map(x=>x[0]);
     h+='<div class="part" style="margin-top:2px"><h2 class="ph"><span><i class="dot '+g.c+'"></i> '+esc(g.k===p?p:g.k+" · "+p)+'</span><span class="ph-n">今天 '+list.filter(e=>ents[e.id]).length+' / 共 '+list.length+' 个</span></h2><div class="list">';
@@ -2307,7 +2311,7 @@ function exportRows(){const NS=8,H=["日期","星期","部位","动作","器械"
 function toCsv(rows){return "﻿"+rows.map(r=>r.map(v=>{v=String(v==null?"":v);return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(",")).join("\r\n")}
 
 /* 完整备份(JSON):训练记录 + 动作列表 + 各项设置,可在新版里导入 */
-const BK_DOCS=["catalog","rules","groups","prefs","ui"];
+const BK_DOCS=["catalog","rules","groups","prefs","ui","injury"];
 async function exportJson(){const m=$("bkMsg"),say=t=>{if(m)m.textContent=t};
   if(!S.db||!S.base){say("现在没连上云端,请联网后再试。");return}
   say("正在打包…");const out={app:"训练日记",v:1,at:new Date().toISOString(),docs:{},days:{}};
@@ -2716,9 +2720,12 @@ document.addEventListener("pointerdown",ev=>{const m=ev.target.closest('.mod[dat
 document.addEventListener("pointermove",ev=>{if(lpT&&lpXY&&Math.hypot(ev.clientX-lpXY[0],ev.clientY-lpXY[1])>10){clearTimeout(lpT);lpT=null}});
 ["pointerup","pointercancel"].forEach(t=>document.addEventListener(t,()=>{if(lpT){clearTimeout(lpT);lpT=null}}));
 function openLp(k){S.lpK=k;$("lpTitle").textContent="安排「"+k+"」哪天练";renderLp();$("lp").hidden=false}
-function renderLp(){const k=S.lpK,cur=planGet(k),t=todayStr();let h='<div class="lp-days">';
+function renderLp(){const k=S.lpK,cur=planGet(k),t=todayStr();
+  if(injGet(k)){const since=injGet(k),dd=toDate(since);$("lpTitle").textContent="「"+k+"」受伤休息中";
+    $("lpBody").innerHTML='<p class="lp-tip" style="margin-top:0">从 '+(dd.getMonth()+1)+'月'+dd.getDate()+'日 开始休息,已经 '+(gap(since,t)+1)+' 天。伤好了再恢复,它会回到正常的训练建议里。</p><button class="primary lp-inj" data-act="injOff">✓ 伤好了,恢复训练</button>';return}
+  let h='<div class="lp-days">';
   for(let i=0;i<7;i++){const d=shift(t,i),dd=toDate(d);h+='<button class="lp-d" data-act="lpPick" data-d="'+d+'" aria-pressed="'+(cur===d)+'"><b>'+(i===0?'今天':i===1?'明天':i===2?'后天':WD[dd.getDay()])+'</b><small>'+(dd.getMonth()+1)+'/'+dd.getDate()+(i>2?'':' '+WD[dd.getDay()])+'</small></button>'}
-  h+='</div>'+(cur&&cur>=t?'<button class="ghost lp-clear" data-act="lpClear">取消安排</button>':'')+'<p class="lp-tip">选「今天」会放进今天的训练计划;安排到以后的日子,会先放进「已安排」,到那天自动进「今天」。</p>';$("lpBody").innerHTML=h}
+  h+='</div>'+(cur&&cur>=t?'<button class="ghost lp-clear" data-act="lpClear">取消安排</button>':'')+'<p class="lp-tip">选「今天」会放进今天的训练计划;安排到以后的日子,会先放进「已安排」,到那天自动进「今天」。</p><button class="ghost lp-inj" data-act="injOn">🩹 受伤了,先休息</button>';$("lpBody").innerHTML=h}
 S.planOv={};
 function planGet(k){const o=S.planOv[k];if(o&&Date.now()-o.t<60000)return o.d;return (S.plan||{})[k]||null}
 function planAll(){const m=Object.assign({},S.plan||{});Object.keys(S.planOv).forEach(k=>{if(S.planOv[k].d)m[k]=S.planOv[k].d;else delete m[k]});return m}
@@ -2726,6 +2733,12 @@ function planId(k){return "g_"+Array.from(new TextEncoder().encode(k)).map(b=>b.
 function setPlan(k,d,quiet){S.planOv[k]={d:d||null,t:Date.now()};if(S.uid)lsSet("tl_plan_"+S.uid,planAll());
   if(S.db&&S.base){const ref=S.db.doc(S.base+"/plan/g/"+planId(k));(d?ref.set({k,d}):ref.delete()).catch(()=>{if(!quiet)setSync("安排没保存上,请再试一次",true)})}
   if(!quiet)render()}
+/* 受伤:标记后这个部位一直放在「受伤休息」区,不出现在要练/休息里,直到手动恢复 */
+S.inj=S.inj||{};
+function injGet(k){return (S.inj||{})[k]||null}
+function setInj(k,on){const m=Object.assign({},S.inj||{});if(on)m[k]=todayStr();else delete m[k];S.inj=m;S.injT=Date.now();if(S.uid)lsSet("tl_inj_"+S.uid,m);
+  if(on&&planGet(k))setPlan(k,null,true);
+  if(S.db&&S.base)S.db.doc(S.base+"/injury").set({g:m}).catch(()=>setSync("受伤标记没保存上,请再试一次",true));render()}
 document.addEventListener("click",ev=>{
   if(S.lpSkip){S.lpSkip=false;if(ev.target.closest(".mod[data-lp]")){ev.preventDefault();ev.stopPropagation();return}}
   const tab=ev.target.closest("[data-tab]");if(tab){if(!$("sheet").hidden)closeSheet();S.tab=tab.dataset.tab;S.part=null;S.chatWith=null;if(S.tab==="cheer")chatPull();if(S.tab==="prog")S.progPart=null,S.progEx=null;if(tab.dataset.focus){S.fold.s_acts=true;S.fold["pk_"+tab.dataset.focus.slice(4)]=true}render();window.scrollTo(0,0);const fe=tab.dataset.focus&&$(tab.dataset.focus);if(fe)fe.scrollIntoView({block:"start"});return}
@@ -2746,6 +2759,8 @@ document.addEventListener("click",ev=>{
   else if(a==="lpClose"){$("lp").hidden=true}
   else if(a==="lpPick"){S.lpTip=true;lsSet("tl_lptip",1);$("lp").hidden=true;setPlan(S.lpK,b.dataset.d)}
   else if(a==="lpClear"){$("lp").hidden=true;setPlan(S.lpK,null)}
+  else if(a==="injOn"){$("lp").hidden=true;setInj(S.lpK,true)}
+  else if(a==="injOff"){$("lp").hidden=true;setInj(S.lpK,false)}
   else if(a==="partBack"){S.part=null;render();window.scrollTo(0,0)}
   else if(a==="goBack"&&S.tab==="cheer"){S.chatWith=null;render();window.scrollTo(0,0)}
   else if(a==="goBack"){if(S.part)S.part=null;else S.date=todayStr();render();window.scrollTo(0,0)} // 左上返回:部位页→总览;别的日期→今天
